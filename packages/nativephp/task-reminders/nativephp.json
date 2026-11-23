@@ -1,0 +1,51 @@
+{
+  "name": "bloomriver/task-reminders",
+  "version": "1.0.0",
+  "description": "Schedule offline Android reminders for tasks",
+  "namespace": "TaskReminders",
+  "platforms": ["android"],
+  "bridge_functions": [
+    {
+      "name": "TaskReminder.RequestPermission",
+      "android": "com.bloomriver.taskreminders.TaskReminderFunctions.RequestPermission",
+      "android_params": ["activity"],
+      "description": "Request Android notification permission"
+    },
+    {
+      "name": "TaskReminder.Schedule",
+      "android": "com.bloomriver.taskreminders.TaskReminderFunctions.Schedule",
+      "android_params": ["activity"],
+      "description": "Schedule a local task reminder"
+    },
+    {
+      "name": "TaskReminder.Cancel",
+      "android": "com.bloomriver.taskreminders.TaskReminderFunctions.Cancel",
+      "android_params": ["activity"],
+      "description": "Cancel a local task reminder"
+    }
+  ],
+  "android": {
+    "min_version": 26,
+    "permissions": [
+      "android.permission.POST_NOTIFICATIONS",
+      "android.permission.RECEIVE_BOOT_COMPLETED"
+    ],
+    "receivers": [
+      {
+        "name": "com.bloomriver.taskreminders.ReminderReceiver",
+        "exported": false
+      },
+      {
+        "name": "com.bloomriver.taskreminders.ReminderBootReceiver",
+        "exported": true,
+        "intent_filters": [
+          { "action": "android.intent.action.BOOT_COMPLETED" },
+          { "action": "android.intent.action.MY_PACKAGE_REPLACED" }
+        ]
+      }
+    ]
+  },
+  "ios": {
+    "min_version": "15.0"
+  }
+}

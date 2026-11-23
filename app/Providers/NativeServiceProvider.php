@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use BloomRiver\TaskReminders\TaskRemindersServiceProvider;
 use Illuminate\Support\ServiceProvider;
 use Native\Mobile\Providers\BrowserServiceProvider;
 use Native\Mobile\UI\NativeUIServiceProvider;
@@ -38,6 +39,7 @@ class NativeServiceProvider extends ServiceProvider
         return [
             NativeUIServiceProvider::class,
             BrowserServiceProvider::class,
+            TaskRemindersServiceProvider::class,
         ];
     }
 }

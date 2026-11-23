@@ -11,8 +11,10 @@ class Task extends Model
         'description',
         'priority',
         'due_date',
+        'reminder_at',
         'category',
         'is_completed',
+        'completed_at',
     ];
 
     protected function casts(): array
@@ -20,6 +22,8 @@ class Task extends Model
         return [
             'is_completed' => 'boolean',
             'due_date' => 'date:Y-m-d',
+            'reminder_at' => 'datetime',
+            'completed_at' => 'datetime',
         ];
     }
 }

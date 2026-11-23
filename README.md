@@ -1,31 +1,73 @@
-# NativePHP Mobile Starter Template
+# Task Manager
 
-A pre-configured Laravel + NativePHP Mobile starter template.
+An offline-first NativePHP Mobile task manager. Tasks, categories, due dates, reminders and preferences are stored locally in SQLite. No account or cloud service is required.
 
-## What's Included
+## Features
 
-- **Laravel** - Latest version with standard configuration
-- **NativePHP Mobile** - Pre-installed and configured
-- **Laravel Boost**
-- **CLAUDE.md** - Generated guidelines for the AI assistant
+- Dashboard with total, pending, completed and overdue counts plus completion progress.
+- Create and edit tasks in a NativePHP bottom sheet; delete only after confirmation.
+- Complete or reopen tasks, with completion timestamps.
+- Search title, description and category; combine status, priority and category filters with due date, priority, recency and alphabetical sorting.
+- Optional category, priority, due date and reminder date/time.
+- Local default-priority and theme preferences (system, light or dark).
+- Search, filtering and task management use local SQLite data.
 
-## Automated Updates
+Reminder times are saved with tasks and scheduled as local Android alarms by the bundled `bloomriver/task-reminders` plugin. The plugin requests Android notification permission, restores alarms after device restart or app replacement, and cancels alarms when tasks are changed, completed, deleted, or notifications are disabled. Notification delivery still depends on the user granting Android notification permission and the device's alarm and battery policies.
 
-This repository has a GitHub Action that runs daily to keep dependencies up to date:
+## Technology and structure
 
-- Runs `composer update` and commits `composer.lock`
+- Laravel 13, PHP 8.4, SQLite.
+- NativePHP Mobile 4.7.0 and NativePHP Mobile UI 0.6.0.
+- Android application ID: `com.admin.bloomriveraurora`.
+- Java 21 and Android Gradle Plugin project under `nativephp/android`.
 
-## iOS Simulator Build
+Main code:
 
-Every push to `main` builds the starter as an iOS simulator app and publishes it:
+- `app/NativeComponents/Home.php` — screen state and NativePHP events.
+- `app/Services/TaskService.php` — validation and task queries/business rules.
+- `app/Services/SettingsService.php` — local preferences and theme.
+- `app/Models/Task.php` — task attributes and casts.
+- `resources/views/native/home.blade.php` — native screen, dashboard and sheets.
+- `routes/mobile.php` — native route registration.
+- `database/migrations` — task schema and local settings.
+- `tests/Feature` — task, settings and native screen tests.
 
-- https://bin.nativephp.com/mobile-starter/ios-simulator/latest.zip
-- https://bin.nativephp.com/mobile-starter/ios-simulator/latest.json (commit, sha256, bundle id and toolchain versions)
+## Install and run locally
 
-It's an arm64 Debug build, so it needs an Apple Silicon Mac and an iOS 18.2 or newer simulator. To run it in the booted simulator:
+1. Install PHP 8.4, Composer, Java 21, Android Studio and the Android SDK.
+2. Run `composer install`.
+3. Copy `.env.example` to `.env` if needed and set `APP_KEY` with `php artisan key:generate`.
+4. Set `NATIVEPHP_ANDROID_SDK_LOCATION` in `.env` to the Android SDK directory (for example, `C:\Users\<you>\AppData\Local\Android\Sdk`). Set `NATIVEPHP_APP_ID=com.admin.bloomriveraurora`.
+5. Run `php artisan migrate` to create or update the local SQLite database. Migrations add fields and indexes without dropping task rows.
+6. Start an Android emulator, then run `php artisan native:run android <emulator-id>`.
 
-```sh
-curl -fsSL https://bin.nativephp.com/mobile-starter/ios-simulator/latest.zip -o starter.zip && ditto -x -k starter.zip .
-xcrun simctl install booted NativePHP-simulator.app
-xcrun simctl launch booted com.nativephp.starter
+NativePHP's Windows build command resolves `gradlew.bat` through `PATH`. If it is not found, add the project's `nativephp\android` directory to the current PowerShell process `PATH` before running the command. The wrapper uses Gradle 8.14.5. Set `JAVA_HOME` to a Java 21 installation.
+
+For live development, use `php artisan native:watch android <emulator-id>` while the NativePHP app is running. `php artisan native:validate` checks Blade native components. Use `php artisan native:status`, `php artisan native:tail android`, and `php artisan native:tail android --fatals` to inspect the device.
+
+## Testing
+
+Run the automated suite with:
+
+```powershell
+php artisan test --compact
 ```
+
+Tests use an in-memory SQLite database. They cover create/read/update/delete, validation, completion/reopen, search and filters, dashboard statistics, due-date boundaries, local settings, and NativePHP screen rendering.
+
+## Android builds and signing
+
+- Debug build and emulator install: `php artisan native:run android <emulator-id>`.
+- Debug APK output: `nativephp/android/app/build/outputs/apk/debug/app-debug.apk`.
+- The adaptive icon source is `public/images/task-manager-icon.svg`; regenerate `public/icon.png` with `php generate-icon.php` before rebuilding.
+- Signed release APK: `nativephp/android/app/build/outputs/apk/release/app-release.apk`.
+- Signed release AAB: `nativephp/android/app/build/outputs/bundle/release/app-release.aab`.
+- Play Store bundle: use `php artisan native:package android --build-type=bundle` after signing is configured.
+
+The local signing key and credentials are stored under ignored local files in `storage/app/release-signing-*.jks` and `.env`. Back up the keystore and credentials securely; losing them prevents future updates signed with the same app identity. Do not commit keystores, signing passwords, or service-account keys.
+
+## Known limitations
+
+- Local reminder scheduling is implemented for Android. Reminder delivery and reboot recovery still require end-to-end device verification with notification permission granted.
+- Device interaction coverage is limited to launch and dashboard rendering; automated tests cover service and screen rendering, not a complete tap-through journey on the Android emulator.
+- `nativephp/android` is generated by NativePHP and ignored by Git. Reapply any direct Android project changes after regenerating that project.

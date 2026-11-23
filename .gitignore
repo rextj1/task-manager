@@ -27,3 +27,6 @@ Thumbs.db
 # Vibe service (deployed separately from R2)
 vibe-service/
 public/vibe/
+
+/storage/app/release-signing/
+/storage/app/release-signing-*.jks

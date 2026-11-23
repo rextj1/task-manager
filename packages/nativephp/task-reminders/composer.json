@@ -1,0 +1,24 @@
+{
+  "name": "bloomriver/task-reminders",
+  "version": "1.0.0",
+  "description": "Local Android task reminder notifications for Bloom River Task Manager",
+  "type": "nativephp-plugin",
+  "license": "MIT",
+  "require": {
+    "php": "^8.3",
+    "nativephp/mobile": "^4.7"
+  },
+  "autoload": {
+    "psr-4": {
+      "BloomRiver\\TaskReminders\\": "src/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": ["BloomRiver\\TaskReminders\\TaskRemindersServiceProvider"]
+    },
+    "nativephp": {
+      "manifest": "nativephp.json"
+    }
+  }
+}

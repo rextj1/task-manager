@@ -1,109 +1,88 @@
 <?php
 
+use App\Services\TaskService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Native\Mobile\Testing\Native;
 
-it('renders the welcome screen with native components', function () {
-    $logoPath = public_path('images/nativephp-logo.png');
+uses(RefreshDatabase::class);
 
-    expect($logoPath)->toBeFile();
+it('renders a valid native root screen', function () {
+    $screen = Native::visit('/')
+        ->assertSee('Task Manager')
+        ->assertSee('Your tasks')
+        ->assertSee('Overview')
+        ->assertElement('column');
+
+    expect($screen->tree())->not->toBeEmpty();
+});
+
+it('shows database tasks on the initial dashboard and keeps the new-task sheet closed', function () {
+    app(TaskService::class)->createTask([
+        'title' => 'Pack the demo kit',
+        'description' => 'Charge the devices before leaving',
+        'category' => 'work',
+        'priority' => 'high',
+    ]);
 
     Native::visit('/')
-        ->assertSee('Your app is ready.')
-        ->assertSee('Read the Docs')
-        ->assertSee('Join the Community')
-        ->assertSee('Explore on GitHub')
-        ->assertSee('Built on NativePHP · Made by Bifrost')
-        ->assertSee('Powered by Laravel')
-        ->assertMissingElement('top_bar')
-        ->assertElement('column', fn (array $node): bool => ($node['ref'] ?? null) === 'welcome-screen'
-            && ($node['layout']['width'] ?? null) === 'fill'
-            && ($node['layout']['height'] ?? null) === 'fill'
-            && ($node['layout']['align_items'] ?? null) === 1
-            && ($node['layout']['justify_content'] ?? null) === 1
-            && ($node['layout']['safe_area'] ?? null) === 1)
-        ->assertElement('column', fn (array $node): bool => ($node['ref'] ?? null) === 'welcome-card'
-            && ($node['style']['border_radius'] ?? null) === 16.0)
-        ->assertElement('row', fn (array $node): bool => ($node['ref'] ?? null) === 'nativephp-logo-container'
-            && ($node['layout']['width'] ?? null) === 'fill'
-            && ($node['layout']['justify_content'] ?? null) === 1)
-        ->assertElement('image', fn (array $node): bool => ($node['ref'] ?? null) === 'nativephp-logo'
-            && ($node['props']['src'] ?? null) === $logoPath
-            && ($node['layout']['width'] ?? null) === 64.0
-            && ($node['layout']['height'] ?? null) === 64.0
-            && ($node['props']['fit'] ?? null) === 1)
-        ->assertElement('column', fn (array $node): bool => ($node['ref'] ?? null) === 'welcome-footer'
-            && ($node['layout']['width'] ?? null) === 'fill'
-            && ($node['layout']['align_items'] ?? null) === 1);
+        ->assertSee('Pack the demo kit')
+        ->assertSee('Charge the devices before leaving')
+        ->assertElement('bottom_sheet', fn (array $node): bool => ($node['props']['visible'] ?? null) === false);
 });
 
-it('takes every color from the native-ui theme tokens', function () {
-    $light = config('native-ui.theme.light');
-    $dark = config('native-ui.theme.dark');
+it('renders dropdown choices as separate NativePHP options with a selected value', function () {
+    $screen = Native::visit('/');
+    $tree = $screen->tree();
+    $selects = [];
+    $collectSelects = function (array $node) use (&$collectSelects, &$selects): void {
+        if (($node['type'] ?? null) === 'select') {
+            $selects[$node['props']['label'] ?? ''] = [
+                'options' => $node['props']['options'] ?? [],
+                'value' => $node['props']['value'] ?? null,
+            ];
+        }
 
+        foreach ($node['children'] ?? [] as $child) {
+            $collectSelects($child);
+        }
+    };
+    $collectSelects($tree);
+
+    expect($selects)->toMatchArray([
+        'Show' => ['options' => ['All', 'Pending', 'Completed', 'Overdue', 'Today', 'Upcoming'], 'value' => 'All'],
+        'Sort by' => ['options' => ['Due date', 'Priority', 'Newest', 'Oldest', 'A-Z'], 'value' => 'Due date'],
+        'Category' => ['options' => ['All categories', ...TaskService::DEFAULT_CATEGORIES], 'value' => 'All categories'],
+        'Priority' => ['options' => ['All priorities', 'low', 'medium', 'high'], 'value' => 'All priorities'],
+    ]);
+
+    $selects = [];
+    $collectSelects($screen->tap('Settings')->tree());
+
+    expect($selects)->toMatchArray([
+        'Default task priority' => ['options' => ['low', 'medium', 'high'], 'value' => 'medium'],
+        'Theme' => ['options' => ['system', 'light', 'dark'], 'value' => 'system'],
+    ]);
+});
+
+it('supports the task flow through NativePHP screen events', function () {
     $screen = Native::visit('/')
-        ->assertElement('column', fn (array $node): bool => ($node['ref'] ?? null) === 'welcome-screen'
-            && ($node['style']['bg_color'] ?? null) === $light['background']
-            && ($node['props']['dark_bg_color'] ?? null) === $dark['background'])
-        ->assertElement('column', fn (array $node): bool => ($node['ref'] ?? null) === 'welcome-card'
-            && ($node['style']['bg_color'] ?? null) === $light['surface']
-            && ($node['props']['dark_bg_color'] ?? null) === $dark['surface'])
-        ->assertElement('text', fn (array $node): bool => ($node['ref'] ?? null) === 'welcome-title'
-            && ($node['props']['color'] ?? null) === $light['on-surface']
-            && ($node['props']['dark_color'] ?? null) === $dark['on-surface'])
-        ->assertElement('text', fn (array $node): bool => ($node['ref'] ?? null) === 'welcome-subtitle'
-            && ($node['props']['color'] ?? null) === $light['on-surface-variant']
-            && ($node['props']['dark_color'] ?? null) === $dark['on-surface-variant']);
+        ->tap('+ New Task')
+        ->assertElement('bottom_sheet', fn (array $node): bool => ($node['props']['visible'] ?? null) === true)
+        ->input('title', 'Prepare the weekly plan')
+        ->input('description', 'List the three most important outcomes')
+        ->tap('Save Task')
+        ->assertSee('Prepare the weekly plan')
+        ->tap('Edit')
+        ->input('title', 'Prepare the weekly work plan')
+        ->tap('Update Task')
+        ->assertSee('Prepare the weekly work plan')
+        ->tap('Complete')
+        ->assertSee('COMPLETED')
+        ->tap('Reopen')
+        ->assertSee('PENDING')
+        ->tap('Delete')
+        ->tap('Delete task')
+        ->assertDontSee('Prepare the weekly work plan');
 
-    foreach (['docs-link', 'community-link', 'github-link'] as $ref) {
-        $screen->assertElement('row', fn (array $node): bool => ($node['ref'] ?? null) === $ref
-            && ($node['style']['bg_color'] ?? null) === $light['surface-variant']
-            && ($node['style']['border_color'] ?? null) === $light['outline']
-            && ($node['props']['dark_bg_color'] ?? null) === $dark['surface-variant']
-            && ($node['props']['dark_border_color'] ?? null) === $dark['outline']);
-    }
-});
-
-it('is fully accessible', function () {
-    $links = [
-        'docs-link' => ['Read the Docs', 'Opens the documentation in an in-app browser'],
-        'community-link' => ['Join the Community', 'Opens the Discord invite in your browser'],
-        'github-link' => ['Explore on GitHub', 'Opens the GitHub organization in your browser'],
-    ];
-
-    $screen = Native::visit('/')
-        ->assertElement('image', fn (array $node): bool => ($node['ref'] ?? null) === 'nativephp-logo'
-            && ($node['props']['alt'] ?? null) === 'NativePHP');
-
-    foreach ($links as $ref => [$label, $hint]) {
-        $screen->assertElement('row', fn (array $node): bool => ($node['ref'] ?? null) === $ref
-            && ($node['props']['a11y_label'] ?? null) === $label
-            && ($node['props']['a11y_hint'] ?? null) === $hint);
-    }
-
-    $screen->assertAccessible();
-
-    expect($screen->accessibilityViolations())->toBe([]);
-});
-
-it('opens every welcome link through the native browser bridge', function () {
-    $bridge = Native::fakeBridge()
-        ->respondTo('Browser.OpenInApp', ['success' => true])
-        ->respondTo('Browser.Open', ['success' => true]);
-
-    Native::visit('/')
-        ->tap('docs-link')
-        ->tap('community-link')
-        ->tap('github-link');
-
-    $bridge
-        ->assertCalled('Browser.OpenInApp', fn (array $params): bool => $params['url'] === 'https://nativephp.com/docs/mobile')
-        ->assertCalled('Browser.Open', fn (array $params): bool => $params['url'] === 'https://discord.gg/nativephp')
-        ->assertCalled('Browser.Open', fn (array $params): bool => $params['url'] === 'https://github.com/NativePHP')
-        ->assertCalledTimes('Browser.OpenInApp', 1)
-        ->assertCalledTimes('Browser.Open', 2)
-        ->assertCallOrder([
-            'Browser.OpenInApp',
-            'Browser.Open',
-            'Browser.Open',
-        ]);
+    expect($screen->tree())->not->toBeEmpty();
 });

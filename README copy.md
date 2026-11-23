@@ -1,5 +1,6 @@
 # to build the andriod virtual app
  php artisan native:run android emulator-5554 --build=debug
+ php artisan native:run android
 # to watch the app
  php artisan native:watch android emulator-5554  
 # to stop the app
